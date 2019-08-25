@@ -1,0 +1,89 @@
+#!/bin/bash
+# EvilPhishing - Back to normal
+# Gabriel Haab, Jan 2018
+
+# ===== Check Sudo =======
+
+if [ $(id -u) != "0" ]; then
+    echo "You need to be root to run this software, try:\nsudo ./BackToNormal 'WirelessCard'"
+echo "\n"
+    exit 1
+fi
+
+case "$1" in 
+	-h | --help)
+		echo "This script will turn everything back to normal, you just need to provide the name of the wireless card that you want to fix" 
+	exit 0
+;;
+	"")
+	echo "[+] You need to provide the wireless card name that you want to fix"
+	echo "for example: $0 wlan1"
+	exit 0
+;;
+
+esac 
+
+# ========================
+
+service hostapd stop
+service dnsmasq stop
+service apache2 stop
+
+if [ -e "/etc/dnsmasq.conf.orig" ]; then
+rm /etc/dnsmasq.conf
+mv /etc/dnsmasq.conf.orig /etc/dnsmasq.conf
+echo "[+] /etc/dnsmasq.conf is back to normal"
+else
+echo "[-] /etc/dnsmasq.conf/dnsmasq.conf remains the same"
+fi
+
+if [ -d "/var/www/old" ]; then
+rm -r /var/www/html/*
+mv /var/www/old/* /var/www/html/
+rm -r /var/www/old
+echo "[+] /var/www/old/ moved back to /var/www/html/"
+else
+echo "[-] /var/www/html remains the same"
+fi
+
+if [ -e "/etc/hostapd/hostapd.conf.orig" ]; then
+rm /etc/hostapd/hostapd.conf
+mv /etc/hostapd/hostapd.conf.orig /etc/hostapd/hostapd.conf
+echo "[+] /etc/hostapd/hostapd.conf is back to normal"
+else
+echo "[-] /etc/hostapd/hostapd.conf remains the same"
+fi
+
+if [ -e "/etc/default/hostapd.orig" ]; then
+rm /etc/default/hostapd
+mv /etc/default/hostapd.orig /etc/default/hostapd
+echo "[+] /etc/default/hostapd is back to normal"
+else
+echo "[-] /etc/default/hostapd remains the same"
+fi
+
+
+# ===== restoring the iptables ======
+
+iptables --flush
+iptables --table nat --flush
+iptables --delete-chain
+iptables --table nat --delete-chain
+
+echo "[+] iptables flushed"
+
+nmcli radio wifi on 
+
+iw dev $1 set txpower auto
+ifconfig $1 down 
+iwconfig $1 mode managed 
+ifconfig $1 up 
+
+echo "[+] Wireless card $1 back to normal"
+service network-manager restart
+echo ""
+echo "###############################"
+echo "Thank you for using this script"
+echo "###############################"
+
+exit 0

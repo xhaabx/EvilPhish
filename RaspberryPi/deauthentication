@@ -1,0 +1,36 @@
+#!/bin/bash
+
+wlan1=`iw dev | cut -d ' ' -f 2 | grep wlan1`
+
+if [ "$wlan1" = "wlan1" ]; then 
+	
+	mac=28:94:0f:c8:00
+	
+	mon0=`iw dev | cut -d ' ' -f 2 | grep mon0`
+	
+	if [ ! "$mon0" = "mon0" ]; then 
+		ifconfig wlan1 down
+		iw dev wlan1 interface add mon0 type monitor
+		ifconfig mon0 down 
+		iwconfig mon0 mode monitor
+		ifconfig mon0 up
+		echo "mon0 interface created"
+	fi	
+
+	#aireplay-ng -0 10 -a 28:94:0f:c8:00 mon0 --ignore-negative-one 
+	#sleep 10
+	
+	#aireplay-ng -0 10 -a $mac mon0 --ignore-negative-one 
+	#sleep 10
+	
+	#aireplay-ng -0 10 -a $mac mon0 --ignore-negative-one 
+	#sleep 10
+
+	echo "Press enter to take down the mon0 interface"
+	read -r DumbValue
+
+	ifconfig mon0 down 
+	iw dev mon0 del 
+	iwconfig wlan1 mode managed 
+	ifconfig wlan1 up
+fi

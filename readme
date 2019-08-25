@@ -1,0 +1,33 @@
+EvilPhishing is a evil twin attack that redirects all the traffic to a local webserver with a phishing page. 
+
+To use this script you'll need to install some dependencies, just run ./install 
+to start the script, just type "./EvilPhishing". At the end of the script it will turn your system back to normal. 
+
+* In case of the script crash without turning the files back to normal, you can just run the "./Back_to_normal" script to get everything back to normal.
+
+
+====== Adding new phishing pages ======== 
+
+1 - Open your browser 
+2 - Go to the page you want to perform the phishing, 
+3 - right clich and download the page to the folder "NewPage" 
+4 - run the script "./NewPage"
+5 - Put all the files, except the script, inside a folder with the name of the website
+5 - Move that folder inside the "WebPages" folder. 
+6 - run the ./EvilPhishing script
+
+====== Using on a Raspberry Pi ========= 
+
+Theres also a version to install in a raspberry pi with kali image. 
+Just run the script ./EvilRasp, and that's it.
+
+* The raspberry pi version does not require to run the script everytime, it will run everytime you turn on the RaspberryPi. 
+
+* The raspberry pi version does not install a webpage, you will need to choose one and copy it to the folder "/var/www/html" inside the raspberry pi
+
+* to see the credentials of the people connected, you can connect to the rapsberry pi wireless, open your browser and access: "192.168.4.1/mydatafile" 
+
+
+## Disclaimer
+
+***EvilPhish is intended to be used for legal security purposes only, and you should only use it to protect networks/hosts you own or have permission to test. Any other use is not the responsibility of the developer(s).  Be sure that you understand and are complying with the EvilPhish licenses and laws in your area.  In other words, don't be stupid, don't be an asshole, and use this tool responsibly and legally.***

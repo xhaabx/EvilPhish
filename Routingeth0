@@ -1,0 +1,12 @@
+#!/bin/bash
+
+service network-manager stop 
+brctl addif br0 eth0 
+dhclient br0 
+
+add -net 0.0.0.0/0 gw IP_address_of_your_router dev br0
+del -net 0.0.0.0/0 gw IP_address_of_your_router dev eth0
+
+echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+
